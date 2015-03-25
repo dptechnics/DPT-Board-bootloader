@@ -10,18 +10,13 @@ Table of contents
 	- [Web server](#web-server)
 	- [Network Console](#network-console)
 	- [Other](#other)
-	- [Supported FLASH chips](#supported-flash-chips)
 - [How to install it?](#how-to-install-it)
 	- [Cautions, backups](#cautions-backups)
-	- [Using external programmer](#using-external-programmer)
 	- [Using UART, U-Boot console and TFTP server](#using-uart-u-boot-console-and-tftp-server)
 		- [Important notice!](#important-notice)
 		- [Step by step instruction](#step-by-step-instruction)
 	- [Using OpenWrt](#using-openwrt)
-	- [Using DD-WRT](#using-dd-wrt)
-- [How to use it?](#how-to-use-it)
 - [How to compile the code?](#how-to-compile-the-code)
-- [FAQ](#faq)
 - [License, outdated sources etc.](#license-outdated-sources-etc)
 - [Credits](#credits)
 
@@ -258,17 +253,7 @@ You can use one of the free toolchains:
 - [ELDK (Embedded Linux Development Kit)](ftp://ftp.denx.de/pub/eldk/),
 - or any others...
 
-I am using **Sourcery CodeBench Lite Edition for MIPS GNU/Linux** on **Ubuntu 12.04 LTS** (32-bit, virtual machine) and all released binary images were/will be built using this set.
-
-All you need to do, after choosing a toolchain, is to modify [Makefile](Makefile) - change or remove `export MAKECMD` and if needed add `export PATH`. For example, to use OpenWrt Toolchain instead of Sourcery CodeBench Lite, download it and extract into `toolchain` folder, inside the top dir and change first lines in [Makefile](Makefile):
-
-```
-export BUILD_TOPDIR=$(PWD)
-export STAGING_DIR=$(BUILD_TOPDIR)/tmp
-
-export MAKECMD=make --silent ARCH=mips CROSS_COMPILE=mips-openwrt-linux-uclibc-
-export PATH:=$(BUILD_TOPDIR)/toolchain/bin/:$(PATH)
-```
+DPTechnics uses the  **OpenWRT Linaro Toolchain** on **Ubuntu 12.04 LTS** (64-bit, virtual machine) and all released binary images were/will be built using this set.
 
 To build image, run `make model` inside top dir, for example, command:
 
