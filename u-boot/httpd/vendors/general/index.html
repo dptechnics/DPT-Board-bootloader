@@ -1,0 +1,41 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset=utf-8>
+<title>DPT-Board firmware install</title>
+<link rel=stylesheet href=style.css>
+</head>
+<body>
+<div class="lg">
+	<div class="u"><span class="d">DP</span><span class="tg">TECHNICS</span></div>
+	<div class="y">YOUR ELECTRONICS RESOURCE</div>
+</div>
+<div class="content">
+<div class=title>Firmware installation</div>
+<p>
+To install the DPT-Board firmware you must follow these steps:
+</p>
+<ol>
+<li>Download the file 'openwrt-ar71xx-generic-dpt-module-squashfs-factory.bin' from <a href=http://firmware.dptechnics.com/dptv1/ target=_blank>http://firmware.dptechnics.com/dptv1/</a>. Choose any software version you want, the latest version is recommended.</li>
+<li>Select the file you just downloaded.</li>
+<li>Press the <b>Restore firmware</b> button and wait for your device to boot again.</li>
+</ol>
+<form method=post enctype=multipart/form-data>
+<input type=file name=firmware>
+<input type=submit value="Restore firmware" class=btn>
+</form>
+<div class=warnings>
+<strong>WARNINGS</strong>
+<ul>
+<li>Do not power off the device during update, this may break your device.</li>
+<li>The DPT-Board will restart after the installation is finished.</li>
+<li>Make sure to upload the correct firmware file, a wrong file may break your device.</li>
+</ul>
+</div>
+<div class=menu>
+<a href=uboot.html>Update bootloader</a>
+<a href=art.html>Update ART data</a>
+</div>
+</div>
+</body>
+</html>
