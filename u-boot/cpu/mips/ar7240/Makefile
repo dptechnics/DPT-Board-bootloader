@@ -7,7 +7,7 @@ START	=
 
 OBJS	= meminit.o 
 
-ifeq ($(BOARD), ap121)
+ifeq ($(BOARD), dpt-module-v1)
 OBJS	+= hornet_serial.o
 SOBJS	+= hornet_ddr_init.o
 else

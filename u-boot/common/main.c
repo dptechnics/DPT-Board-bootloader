@@ -43,240 +43,113 @@ extern int NetLoopHttpd(void);
 
 static char *delete_char(char *buffer, char *p, int *colp, int *np, int plen);
 static int parse_line(char *, char *[]);
-#if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)
-static int abortboot(int);
-#endif
 
-char console_buffer[CFG_CBSIZE]; /* console I/O buffer	*/
-static char erase_seq[] = "\b \b"; /* erase sequence	*/
-static char tab_seq[] = "        "; /* used to expand TABs	*/
+char console_buffer[CFG_CBSIZE];        /* console I/O buffer	*/
+static char erase_seq[] = "\b \b";      /* erase sequence	*/
+static char tab_seq[] = "        ";     /* used to expand TABs	*/
 
-/***************************************************************************
- * Watch for 'delay' seconds for autoboot stop or autoboot delay string.
- * returns: 0 -  no key string, allow autoboot
- *          1 - got key string, abort
+/**
+ * The main loop is called after bare board initialization. When the 
  */
+void main_loop(void){    
 #if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)
-static __inline__ int abortboot(int bootdelay){
-	int abort = 0;
-
-#ifdef CONFIG_SILENT_CONSOLE
-	if(gd->flags & GD_FLG_SILENT){
-		/* Restore serial console */
-		console_assign(stdout, "serial");
-		console_assign(stderr, "serial");
-	}
+    char *bootcmd;
+    int bootdelay = CONFIG_BOOTDELAY;
 #endif
-
-	if(bootdelay > 0){
-#ifdef CONFIG_MENUPROMPT
-		printf(CONFIG_MENUPROMPT, bootdelay);
-#else
-		printf("Hit any key to stop autoboot: %d ", bootdelay);
-#endif
-
-		while((bootdelay > 0) && (!abort)){
-			int i;
-
-			--bootdelay;
-
-			/* delay 100 * 10ms */
-			for(i = 0; !abort && i < 100; ++i){
-
-				/* we got a key press	*/
-				if(tstc()){
-					/* don't auto boot	*/
-					abort = 1;
-					/* no more delay	*/
-					bootdelay = 0;
-					/* consume input	*/
-					(void) getc();
-					break;
-				}
-				udelay(10000);
-			}
-
-			printf("\b\b%d ", bootdelay);
-		}
-
-		printf("\n\n");
-	}
-
-#ifdef CONFIG_SILENT_CONSOLE
-	if(abort){
-		/* permanently enable normal console output */
-		gd->flags &= ~(GD_FLG_SILENT);
-	} else if(gd->flags & GD_FLG_SILENT){
-		/* Restore silent console */
-		console_assign(stdout, "nulldev");
-		console_assign(stderr, "nulldev");
-	}
-#endif
-
-	return(abort);
-}
-#endif	/* CONFIG_BOOTDELAY >= 0  */
-
-/****************************************************************************/
-
-void main_loop(void){
+    
 #ifndef CFG_HUSH_PARSER
-	static char lastcommand[CFG_CBSIZE] = { 0, };
-	int len;
-	int rc = 1;
-	int flag;
-#endif
-	int counter = 0;
-
-#if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)
-	char *s;
-	int bootdelay;
-#endif /* defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0) */
-
-#ifdef CFG_HUSH_PARSER
-	u_boot_hush_start();
+    static char lastcommand[CFG_CBSIZE] = { 0, };
+    int len;
+    int rc = 1;
+    int flag;
+#else
+    u_boot_hush_start();
 #endif
 
 #if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)
-	// get boot delay (seconds)
-	s = getenv("bootdelay");
-	bootdelay = s ? (int)simple_strtol(s, NULL, 10) : CONFIG_BOOTDELAY;
-
-	// get boot command
-	s = getenv("bootcmd");
-
+    
 #if !defined(CONFIG_BOOTCOMMAND)
-#error "CONFIG_BOOTCOMMAND not defined!"
+    #error "CONFIG_BOOTCOMMAND not defined!"
 #endif
+    
+    /* Read boot command from the environment */
+    bootcmd = getenv("bootcmd");
+    if(!bootcmd){
+        setenv("bootcmd", CONFIG_BOOTCOMMAND);
+    }
+    bootcmd = getenv("bootcmd");
+    
+    /* Print bootloader message */
+    puts(CONFIG_BOOTLOADER_MSG "\n\n");
 
-	if(!s){
-		setenv("bootcmd", CONFIG_BOOTCOMMAND);
-	}
-
-	s = getenv("bootcmd");
-
-	// are we going to run web failsafe mode, U-Boot console, U-Boot netconsole or just boot command?
-	if(reset_button_status()){
+    /*
+     * Go into bootloader mode when the reset button is enabled
+     */
+    if(reset_button_status()){
 
 #ifdef CONFIG_SILENT_CONSOLE
-		if(gd->flags & GD_FLG_SILENT){
-			/* Restore serial console */
-			console_assign(stdout, "serial");
-			console_assign(stderr, "serial");
-		}
+        if(gd->flags & GD_FLG_SILENT){
+            /* Restore serial console */
+            console_assign(stdout, "serial");
+            console_assign(stderr, "serial");
+        }
 
-		/* enable normal console output */
-		gd->flags &= ~(GD_FLG_SILENT);
+	/* Enable normal console output */
+	gd->flags &= ~(GD_FLG_SILENT);
 #endif
+        bootdelay = -1;
+    }
 
-		// wait 0,5s
-		milisecdelay(500);
+    /*
+     * Continue booting if the boot was not interrupted by the reset button
+     * or abortboot function, else we just continue and wait for a command.
+     */
+    if(bootdelay >= 0 && bootcmd){
 
-		printf("Press reset button for at least:\n- %d sec. to run web failsafe mode\n- %d sec. to run U-Boot console\n- %d sec. to run U-Boot netconsole\n\n",
-				CONFIG_DELAY_TO_AUTORUN_HTTPD,
-				CONFIG_DELAY_TO_AUTORUN_CONSOLE,
-				CONFIG_DELAY_TO_AUTORUN_NETCONSOLE);
-
-		printf("Reset button is pressed for: %2d ", counter);
-
-		while(reset_button_status()){
-
-			// LED ON and wait 0,15s
-			all_led_on();
-			milisecdelay(150);
-
-			// LED OFF and wait 0,85s
-			all_led_off();
-			milisecdelay(850);
-
-			counter++;
-
-			// how long the button is pressed?
-			printf("\b\b\b%2d ", counter);
-
-			if(!reset_button_status()){
-				break;
-			}
-
-			if(counter >= CONFIG_MAX_BUTTON_PRESSING){
-				break;
-			}
-		}
-
-		all_led_off();
-
-		if(counter > 0){
-
-			// run web failsafe mode
-			if(counter >= CONFIG_DELAY_TO_AUTORUN_HTTPD && counter < CONFIG_DELAY_TO_AUTORUN_CONSOLE){
-				printf("\n\nButton was pressed for %d sec...\nHTTP server is starting for firmware update...\n\n", counter);
-				NetLoopHttpd();
-				bootdelay = -1;
-			} else if(counter >= CONFIG_DELAY_TO_AUTORUN_CONSOLE && counter < CONFIG_DELAY_TO_AUTORUN_NETCONSOLE){
-				printf("\n\nButton was pressed for %d sec...\nStarting U-Boot console...\n\n", counter);
-				bootdelay = -1;
-			} else if(counter >= CONFIG_DELAY_TO_AUTORUN_NETCONSOLE){
-				printf("\n\nButton was pressed for %d sec...\nStarting U-Boot netconsole...\n\n", counter);
-				bootdelay = -1;
-				run_command("startnc", 0);
-			} else {
-				printf("\n\n## Error: button wasn't pressed long enough!\nContinuing normal boot...\n\n");
-			}
-
-		} else {
-			printf("\n\n## Error: button wasn't pressed long enough!\nContinuing normal boot...\n\n");
-		}
-
-	}
-
-	if(bootdelay >= 0 && s && !abortboot(bootdelay)){
-
-		// try to boot
 #ifndef CFG_HUSH_PARSER
-			run_command(s, 0);
+        run_command(bootcmd, 0);
 #else
-			parse_string_outer(s, FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP);
+	parse_string_outer(bootcmd, FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP);
 #endif
 
-		// something goes wrong!
-		printf("\n## Error: failed to execute 'bootcmd'!\nHTTP server is starting for firmware update...\n\n");
-		NetLoopHttpd();
-	}
+	/* We reach here if the boot command failed */
+	printf("\n[ERROR] Firmware boot failed\nHTTP server is starting for firmware recovery\n");
+	NetLoopHttpd();
+    }
 #endif	/* CONFIG_BOOTDELAY */
 
-	/*
-	 * Main Loop for Monitor Command Processing
-	 */
+    /*
+     * Main Loop for Monitor Command Processing
+     */
 #ifdef CFG_HUSH_PARSER
-	parse_file_outer();
-	/* This point is never reached */
-	for (;;);
+    parse_file_outer();
+
+    /* This point is never reached */
+    for (;;);
 #else
-	for(;;){
-		len = readline(CFG_PROMPT);
+    for(;;){
+        len = readline(CFG_PROMPT);
 
-		flag = 0; /* assume no special flags for now */
-		if(len > 0){
-			strcpy(lastcommand, console_buffer);
-		} else if(len == 0){
-			flag |= CMD_FLAG_REPEAT;
-		}
+        flag = 0; /* assume no special flags for now */
+        if(len > 0){
+            strcpy(lastcommand, console_buffer);
+        } else if(len == 0){
+            flag |= CMD_FLAG_REPEAT;
+        }
 
-		if(len == -1){
-			puts("<INTERRUPT>\n");
-		} else {
-			rc = run_command(lastcommand, flag);
-		}
+        if(len == -1){
+            puts("<INTERRUPT>\n");
+        } else {
+            rc = run_command(lastcommand, flag);
+        }
 
-		if(rc <= 0){
-			/* invalid command or not repeatable, forget it */
-			lastcommand[0] = 0;
-		}
-	}
-#endif /* CFG_HUSH_PARSER */
+        if(rc <= 0){
+            /* invalid command or not repeatable, forget it */
+            lastcommand[0] = 0;
+        }
+    }
+#endif
 }
-
-/****************************************************************************/
 
 /*
  * Prompt for input and read a line.
